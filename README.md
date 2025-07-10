@@ -42,20 +42,20 @@ runners based on availability and usage limits.
 
 ## Inputs
 
-| Input                 | Required | Default | Description                                                            |
-| --------------------- | -------- | ------- | ---------------------------------------------------------------------- |
-| `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels (comma-separated, e.g., "linux,self-hosted") |
-| `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels (comma-separated, e.g., "ubuntu-latest")   |
-| `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes threshold for GitHub-hosted runners          |
-| `github-token`        | ✅       | -       | Personal Access Token with self-hosted runners and billing permissions |
+| Input                 | Required | Default | Description                      |
+| --------------------- | -------- | ------- | -------------------------------- |
+| `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels        |
+| `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels      |
+| `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes        |
+| `github-token`        | ✅       | -       | Personal Access Token            |
 
 ## Outputs
 
-| Output            | Description                                                |
-| ----------------- | ---------------------------------------------------------- |
-| `selected-runner` | Selected runner labels in JSON format                      |
-| `runner-type`     | Type of runner selected ("self-hosted" or "github-hosted") |
-| `reason`          | Explanation for the selection decision                     |
+| Output            | Description                                   |
+| ----------------- | --------------------------------------------- |
+| `selected-runner` | Selected runner labels in JSON format        |
+| `runner-type`     | Type of runner selected                       |
+| `reason`          | Explanation for the selection decision        |
 
 ## Selection Logic
 

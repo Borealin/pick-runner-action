@@ -17,12 +17,12 @@ runners的剩余用量来做出最优选择。
 
 ## 输入参数
 
-| 参数                  | 必需 | 默认值 | 说明                                                         |
-| --------------------- | ---- | ------ | ------------------------------------------------------------ |
-| `self-hosted-tags`    | 是   | -      | self-hosted runners的标签（逗号分隔），如"linux,self-hosted" |
-| `github-hosted-tags`  | 是   | -      | GitHub-hosted runners的标签（逗号分隔），如"ubuntu-latest"   |
-| `github-hosted-limit` | 是   | 1000   | GitHub-hosted runners的最小剩余分钟数阈值                    |
-| `github-token`        | 是   | -      | 具有组织admin权限的GitHub token                              |
+| 参数                  | 必需 | 默认值 | 说明                                    |
+| --------------------- | ---- | ------ | ----------------------------- |
+| `self-hosted-tags`    | 是   | -      | self-hosted runners的标签（逗号分隔）   |
+| `github-hosted-tags`  | 是   | -      | GitHub-hosted runners的标签（逗号分隔） |
+| `github-hosted-limit` | 是   | 1000   | GitHub-hosted runners的最小剩余分钟数   |
+| `github-token`        | 是   | -      | 具有组织admin权限的GitHub token         |
 
 ## 输出参数
 

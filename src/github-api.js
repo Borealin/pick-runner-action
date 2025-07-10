@@ -77,7 +77,7 @@ export class GitHubAPI {
           )
           return {
             total_minutes_used: totalMinutes,
-            included_minutes: 3000, // Default for most plans
+            included_minutes: 3000, // Default fallback - enhanced API doesn't provide this
             minutes_used_breakdown: {
               total: totalMinutes
             }
@@ -111,7 +111,7 @@ export class GitHubAPI {
           )
           return {
             total_minutes_used: totalMinutes,
-            included_minutes: 3000, // Default for most plans
+            included_minutes: 3000, // Default fallback - enhanced API doesn't provide this
             minutes_used_breakdown: {
               total: totalMinutes
             }
