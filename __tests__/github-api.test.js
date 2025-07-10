@@ -112,13 +112,35 @@ describe('GitHubAPI', () => {
   })
 
   describe('getBillingInfo', () => {
-    it('uses enhanced billing API for organizations when available', async () => {
+    it('uses legacy billing API for organizations when available', async () => {
+      const mockBilling = {
+        total_minutes_used: 1000,
+        included_minutes: 3000
+      }
+      mockOctokit.rest.billing.getGithubActionsBillingOrg.mockResolvedValue({
+        data: mockBilling
+      })
+
+      const result = await githubApi.getBillingInfo('test-org', true)
+
+      expect(
+        mockOctokit.rest.billing.getGithubActionsBillingOrg
+      ).toHaveBeenCalledWith({
+        org: 'test-org'
+      })
+      expect(result).toEqual(mockBilling)
+    })
+
+    it('falls back to enhanced API for organizations when legacy API fails', async () => {
       const mockEnhancedResponse = {
         usage_items: [
           { product: 'Actions', quantity: 1000 },
           { product: 'Packages', quantity: 500 }
         ]
       }
+      mockOctokit.rest.billing.getGithubActionsBillingOrg.mockRejectedValue(
+        new Error('Legacy API not available')
+      )
       mockOctokit.request.mockResolvedValue({
         data: mockEnhancedResponse
       })
@@ -143,32 +165,32 @@ describe('GitHubAPI', () => {
       })
     })
 
-    it('falls back to legacy API for organizations when enhanced API fails', async () => {
+    it('uses legacy billing API for users when available', async () => {
       const mockBilling = {
-        total_minutes_used: 1000,
+        total_minutes_used: 500,
         included_minutes: 3000
       }
-      mockOctokit.request.mockRejectedValue(
-        new Error('Enhanced API not available')
-      )
-      mockOctokit.rest.billing.getGithubActionsBillingOrg.mockResolvedValue({
+      mockOctokit.rest.billing.getGithubActionsBillingUser.mockResolvedValue({
         data: mockBilling
       })
 
-      const result = await githubApi.getBillingInfo('test-org', true)
+      const result = await githubApi.getBillingInfo('test-user', false)
 
       expect(
-        mockOctokit.rest.billing.getGithubActionsBillingOrg
+        mockOctokit.rest.billing.getGithubActionsBillingUser
       ).toHaveBeenCalledWith({
-        org: 'test-org'
+        username: 'test-user'
       })
       expect(result).toEqual(mockBilling)
     })
 
-    it('uses enhanced billing API for users when available', async () => {
+    it('falls back to enhanced API for users when legacy API fails', async () => {
       const mockEnhancedResponse = {
         usage_items: [{ product: 'Actions', quantity: 500 }]
       }
+      mockOctokit.rest.billing.getGithubActionsBillingUser.mockRejectedValue(
+        new Error('Legacy API not available')
+      )
       mockOctokit.request.mockResolvedValue({
         data: mockEnhancedResponse
       })
@@ -194,11 +216,11 @@ describe('GitHubAPI', () => {
     })
 
     it('provides fallback when billing APIs are unavailable', async () => {
-      mockOctokit.request.mockRejectedValue({
+      mockOctokit.rest.billing.getGithubActionsBillingUser.mockRejectedValue({
         status: 410,
         message: 'This endpoint has been moved'
       })
-      mockOctokit.rest.billing.getGithubActionsBillingUser.mockRejectedValue({
+      mockOctokit.request.mockRejectedValue({
         status: 410,
         message: 'This endpoint has been moved'
       })

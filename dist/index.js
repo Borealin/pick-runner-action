@@ -30883,73 +30883,44 @@ class GitHubAPI {
    */
   async getBillingInfo(owner, isOrg = true) {
     try {
-      if (isOrg) {
-        // Try new enhanced billing API first
-        try {
-          const { data } = await this.octokit.request(
-            'GET /organizations/{org}/settings/billing/usage',
-            {
-              org: owner,
-              headers: {
-                'X-GitHub-Api-Version': '2022-11-28'
-              }
-            }
-          );
-          // Transform to legacy format
-          const actionsUsage =
-            data.usage_items?.filter((item) => item.product === 'Actions') || [];
-          const totalMinutes = actionsUsage.reduce(
-            (sum, item) => sum + (item.quantity || 0),
-            0
-          );
-          return {
-            total_minutes_used: totalMinutes,
-            included_minutes: 3000, // Default for most plans
-            minutes_used_breakdown: {
-              total: totalMinutes
-            }
-          }
-        } catch (enhancedError) {
-          // Fallback to legacy API
-          const { data } =
-            await this.octokit.rest.billing.getGithubActionsBillingOrg({
+      // Try legacy API first
+      try {
+        const { data } = isOrg
+          ? await this.octokit.rest.billing.getGithubActionsBillingOrg({
               org: owner
-            });
-          return data
-        }
-      } else {
-        // Try new enhanced billing API first
-        try {
-          const { data } = await this.octokit.request(
-            'GET /users/{username}/settings/billing/usage',
-            {
-              username: owner,
-              headers: {
-                'X-GitHub-Api-Version': '2022-11-28'
-              }
-            }
-          );
-          // Transform to legacy format
-          const actionsUsage =
-            data.usage_items?.filter((item) => item.product === 'Actions') || [];
-          const totalMinutes = actionsUsage.reduce(
-            (sum, item) => sum + (item.quantity || 0),
-            0
-          );
-          return {
-            total_minutes_used: totalMinutes,
-            included_minutes: 3000, // Default for most plans
-            minutes_used_breakdown: {
-              total: totalMinutes
-            }
-          }
-        } catch (enhancedError) {
-          // Fallback to legacy API
-          const { data } =
-            await this.octokit.rest.billing.getGithubActionsBillingUser({
+            })
+          : await this.octokit.rest.billing.getGithubActionsBillingUser({
               username: owner
             });
-          return data
+        return data
+      } catch (legacyError) {
+        // Fallback to new enhanced billing API
+        const endpoint = isOrg
+          ? 'GET /organizations/{org}/settings/billing/usage'
+          : 'GET /users/{username}/settings/billing/usage';
+        const params = isOrg ? { org: owner } : { username: owner };
+
+        const { data } = await this.octokit.request(endpoint, {
+          ...params,
+          headers: {
+            'X-GitHub-Api-Version': '2022-11-28'
+          }
+        });
+
+        // Transform to legacy format
+        const actionsUsage =
+          data.usage_items?.filter((item) => item.product === 'Actions') || [];
+        const totalMinutes = actionsUsage.reduce(
+          (sum, item) => sum + (item.quantity || 0),
+          0
+        );
+
+        return {
+          total_minutes_used: totalMinutes,
+          included_minutes: 3000, // Default fallback - enhanced API doesn't provide this
+          minutes_used_breakdown: {
+            total: totalMinutes
+          }
         }
       }
     } catch (error) {

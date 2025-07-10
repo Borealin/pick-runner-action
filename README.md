@@ -42,20 +42,20 @@ runners based on availability and usage limits.
 
 ## Inputs
 
-| Input                 | Required | Default | Description                      |
-| --------------------- | -------- | ------- | -------------------------------- |
-| `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels        |
-| `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels      |
-| `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes        |
-| `github-token`        | ✅       | -       | Personal Access Token            |
+| Input                 | Required | Default | Description                 |
+| --------------------- | -------- | ------- | --------------------------- |
+| `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels   |
+| `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels |
+| `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes   |
+| `github-token`        | ✅       | -       | Personal Access Token       |
 
 ## Outputs
 
-| Output            | Description                                   |
-| ----------------- | --------------------------------------------- |
-| `selected-runner` | Selected runner labels in JSON format        |
-| `runner-type`     | Type of runner selected                       |
-| `reason`          | Explanation for the selection decision        |
+| Output            | Description                            |
+| ----------------- | -------------------------------------- |
+| `selected-runner` | Selected runner labels in JSON format  |
+| `runner-type`     | Type of runner selected                |
+| `reason`          | Explanation for the selection decision |
 
 ## Selection Logic
 
