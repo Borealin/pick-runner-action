@@ -23,9 +23,11 @@ export async function run() {
 
     const githubHostedLimit = parseInt(core.getInput('github-hosted-limit'), 10)
     const githubToken = core.getInput('github-token')
-    const organization = process.env.GITHUB_REPOSITORY_OWNER
+    const owner = process.env.GITHUB_REPOSITORY_OWNER
+    const repo = process.env.GITHUB_REPOSITORY?.split('/')[1]
 
-    core.info(`Checking runners for organization: ${organization}`)
+    core.info(`Checking runners for owner: ${owner}`)
+    core.info(`Repository: ${repo}`)
     core.info(`Self-hosted tags: ${selfHostedTags.join(', ')}`)
     core.info(`GitHub-hosted tags: ${githubHostedTags.join(', ')}`)
     core.info(`GitHub-hosted limit: ${githubHostedLimit} minutes`)
@@ -33,11 +35,16 @@ export async function run() {
     // Initialize GitHub API client
     const githubApi = new GitHubAPI(githubToken)
 
+    // Determine if this is an organization or user
+    core.info('Determining repository type...')
+    const isOrg = await githubApi.isOrganization(owner)
+    core.info(`Repository type: ${isOrg ? 'organization' : 'user'}`)
+
     // Get self-hosted runners and billing info
     core.info('Fetching runner information...')
     const [runners, billingInfo] = await Promise.all([
-      githubApi.getSelfHostedRunners(organization),
-      githubApi.getBillingInfo(organization)
+      githubApi.getSelfHostedRunners(owner, repo, isOrg),
+      githubApi.getBillingInfo(owner, isOrg)
     ])
 
     core.info(`Found ${runners.length} self-hosted runners`)

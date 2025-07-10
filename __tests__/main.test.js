@@ -8,6 +8,7 @@ import * as core from '../__fixtures__/core.js'
 const mockGitHubAPI = {
   getSelfHostedRunners: jest.fn(),
   getBillingInfo: jest.fn(),
+  isOrganization: jest.fn(),
   hasAvailableSelfHostedRunners: jest.fn(),
   hasSufficientGitHubHostedMinutes: jest.fn()
 }
@@ -39,8 +40,9 @@ describe('main.js', () => {
       }
     })
 
-    // Mock environment variable
+    // Mock environment variables
     process.env.GITHUB_REPOSITORY_OWNER = 'test-org'
+    process.env.GITHUB_REPOSITORY = 'test-org/test-repo'
 
     // Default mock implementations
     mockGitHubAPI.getSelfHostedRunners.mockResolvedValue([])
@@ -48,6 +50,7 @@ describe('main.js', () => {
       included_minutes: 3000,
       total_minutes_used: 1000
     })
+    mockGitHubAPI.isOrganization.mockResolvedValue(true)
     mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(false)
     mockGitHubAPI.hasSufficientGitHubHostedMinutes.mockReturnValue(true)
   })
@@ -55,6 +58,7 @@ describe('main.js', () => {
   afterEach(() => {
     jest.clearAllMocks()
     delete process.env.GITHUB_REPOSITORY_OWNER
+    delete process.env.GITHUB_REPOSITORY
   })
 
   it('Selects self-hosted runners when available', async () => {
@@ -137,5 +141,30 @@ describe('main.js', () => {
     await run()
 
     expect(core.setFailed).toHaveBeenCalledWith('Action failed: API Error')
+  })
+
+  it('Works with user repositories', async () => {
+    // Mock user repository
+    process.env.GITHUB_REPOSITORY_OWNER = 'test-user'
+    process.env.GITHUB_REPOSITORY = 'test-user/test-repo'
+    mockGitHubAPI.isOrganization.mockResolvedValue(false)
+    mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(true)
+
+    await run()
+
+    expect(mockGitHubAPI.isOrganization).toHaveBeenCalledWith('test-user')
+    expect(mockGitHubAPI.getSelfHostedRunners).toHaveBeenCalledWith(
+      'test-user',
+      'test-repo',
+      false
+    )
+    expect(mockGitHubAPI.getBillingInfo).toHaveBeenCalledWith(
+      'test-user',
+      false
+    )
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'selected-runner',
+      '["linux","self-hosted"]'
+    )
   })
 })

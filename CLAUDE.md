@@ -13,6 +13,7 @@ runners的剩余用量来做出最优选择。
   runners的剩余用量
 - **用量阈值控制** - 可设置GitHub-hosted runners的最小剩余分钟数阈值
 - **JSON输出格式** - 输出统一为JSON格式，支持单个和多个标签
+- **支持个人和组织仓库** - 自动检测并使用相应的API端点
 
 ## 输入参数
 
@@ -86,11 +87,21 @@ npm run all
 
 GitHub token需要以下权限：
 
-- Organization的admin权限（用于获取self-hosted runners信息）
-- Billing信息读取权限（用于获取GitHub Actions用量信息）
+**对于组织仓库：**
+
+- Organization的admin权限（用于获取组织级self-hosted runners信息）
+- Organization的billing权限（用于获取GitHub Actions用量信息）
+
+**对于个人仓库：**
+
+- Repository的admin权限（用于获取仓库级self-hosted runners信息）
+- User的billing权限（用于获取GitHub Actions用量信息）
 
 ## 注意事项
 
-- 组织名称通过`GITHUB_REPOSITORY_OWNER`环境变量自动获取
+- 仓库所有者和名称通过`GITHUB_REPOSITORY_OWNER`和`GITHUB_REPOSITORY`环境变量自动获取
+- 自动检测仓库类型（个人或组织），并使用相应的API端点
 - 用量限制的单位是分钟数（minutes）
 - 输出的runner标签始终为JSON格式，需要使用`fromJSON`解析
+- 个人仓库的self-hosted runners是仓库级别的，组织仓库的self-hosted
+  runners是组织级别的

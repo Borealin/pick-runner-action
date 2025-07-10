@@ -11,30 +11,66 @@ export class GitHubAPI {
   }
 
   /**
-   * Get all self-hosted runners for an organization
-   * @param {string} org - Organization name
+   * Get all self-hosted runners for an organization or user
+   * @param {string} owner - Owner name (organization or user)
+   * @param {string} repo - Repository name (for user repos)
+   * @param {boolean} isOrg - Whether this is an organization
    * @returns {Promise<Array>} Array of runner objects
    */
-  async getSelfHostedRunners(org) {
-    const { data } =
-      await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
-        org
-      })
-    return data.runners
+  async getSelfHostedRunners(owner, repo = null, isOrg = true) {
+    if (isOrg) {
+      const { data } =
+        await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
+          org: owner
+        })
+      return data.runners
+    } else {
+      const { data } =
+        await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
+          owner,
+          repo
+        })
+      return data.runners
+    }
   }
 
   /**
    * Get billing information for GitHub Actions
-   * @param {string} org - Organization name
+   * @param {string} owner - Owner name (organization or user)
+   * @param {boolean} isOrg - Whether this is an organization
    * @returns {Promise<Object>} Billing information
    */
-  async getBillingInfo(org) {
-    const { data } = await this.octokit.rest.billing.getGithubActionsBillingOrg(
-      {
-        org
+  async getBillingInfo(owner, isOrg = true) {
+    if (isOrg) {
+      const { data } =
+        await this.octokit.rest.billing.getGithubActionsBillingOrg({
+          org: owner
+        })
+      return data
+    } else {
+      const { data } =
+        await this.octokit.rest.billing.getGithubActionsBillingUser({
+          username: owner
+        })
+      return data
+    }
+  }
+
+  /**
+   * Determine if owner is an organization by checking if it has organization-specific data
+   * @param {string} owner - Owner name
+   * @returns {Promise<boolean>} True if owner is an organization
+   */
+  async isOrganization(owner) {
+    try {
+      await this.octokit.rest.orgs.get({ org: owner })
+      return true
+    } catch (error) {
+      if (error.status === 404) {
+        return false
       }
-    )
-    return data
+      throw error
+    }
   }
 
   /**

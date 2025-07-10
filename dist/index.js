@@ -30838,30 +30838,66 @@ class GitHubAPI {
   }
 
   /**
-   * Get all self-hosted runners for an organization
-   * @param {string} org - Organization name
+   * Get all self-hosted runners for an organization or user
+   * @param {string} owner - Owner name (organization or user)
+   * @param {string} repo - Repository name (for user repos)
+   * @param {boolean} isOrg - Whether this is an organization
    * @returns {Promise<Array>} Array of runner objects
    */
-  async getSelfHostedRunners(org) {
-    const { data } =
-      await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
-        org
-      });
-    return data.runners
+  async getSelfHostedRunners(owner, repo = null, isOrg = true) {
+    if (isOrg) {
+      const { data } =
+        await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
+          org: owner
+        });
+      return data.runners
+    } else {
+      const { data } =
+        await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
+          owner,
+          repo
+        });
+      return data.runners
+    }
   }
 
   /**
    * Get billing information for GitHub Actions
-   * @param {string} org - Organization name
+   * @param {string} owner - Owner name (organization or user)
+   * @param {boolean} isOrg - Whether this is an organization
    * @returns {Promise<Object>} Billing information
    */
-  async getBillingInfo(org) {
-    const { data } = await this.octokit.rest.billing.getGithubActionsBillingOrg(
-      {
-        org
+  async getBillingInfo(owner, isOrg = true) {
+    if (isOrg) {
+      const { data } =
+        await this.octokit.rest.billing.getGithubActionsBillingOrg({
+          org: owner
+        });
+      return data
+    } else {
+      const { data } =
+        await this.octokit.rest.billing.getGithubActionsBillingUser({
+          username: owner
+        });
+      return data
+    }
+  }
+
+  /**
+   * Determine if owner is an organization by checking if it has organization-specific data
+   * @param {string} owner - Owner name
+   * @returns {Promise<boolean>} True if owner is an organization
+   */
+  async isOrganization(owner) {
+    try {
+      await this.octokit.rest.orgs.get({ org: owner });
+      return true
+    } catch (error) {
+      if (error.status === 404) {
+        return false
       }
-    );
-    return data
+      throw error
+    }
   }
 
   /**
@@ -30920,9 +30956,11 @@ async function run() {
 
     const githubHostedLimit = parseInt(coreExports.getInput('github-hosted-limit'), 10);
     const githubToken = coreExports.getInput('github-token');
-    const organization = process.env.GITHUB_REPOSITORY_OWNER;
+    const owner = process.env.GITHUB_REPOSITORY_OWNER;
+    const repo = process.env.GITHUB_REPOSITORY?.split('/')[1];
 
-    coreExports.info(`Checking runners for organization: ${organization}`);
+    coreExports.info(`Checking runners for owner: ${owner}`);
+    coreExports.info(`Repository: ${repo}`);
     coreExports.info(`Self-hosted tags: ${selfHostedTags.join(', ')}`);
     coreExports.info(`GitHub-hosted tags: ${githubHostedTags.join(', ')}`);
     coreExports.info(`GitHub-hosted limit: ${githubHostedLimit} minutes`);
@@ -30930,11 +30968,16 @@ async function run() {
     // Initialize GitHub API client
     const githubApi = new GitHubAPI(githubToken);
 
+    // Determine if this is an organization or user
+    coreExports.info('Determining repository type...');
+    const isOrg = await githubApi.isOrganization(owner);
+    coreExports.info(`Repository type: ${isOrg ? 'organization' : 'user'}`);
+
     // Get self-hosted runners and billing info
     coreExports.info('Fetching runner information...');
     const [runners, billingInfo] = await Promise.all([
-      githubApi.getSelfHostedRunners(organization),
-      githubApi.getBillingInfo(organization)
+      githubApi.getSelfHostedRunners(owner, repo, isOrg),
+      githubApi.getBillingInfo(owner, isOrg)
     ]);
 
     coreExports.info(`Found ${runners.length} self-hosted runners`);
