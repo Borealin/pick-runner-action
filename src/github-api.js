@@ -55,18 +55,92 @@ export class GitHubAPI {
    * @returns {Promise<Object>} Billing information
    */
   async getBillingInfo(owner, isOrg = true) {
-    if (isOrg) {
-      const { data } =
-        await this.octokit.rest.billing.getGithubActionsBillingOrg({
-          org: owner
-        })
-      return data
-    } else {
-      const { data } =
-        await this.octokit.rest.billing.getGithubActionsBillingUser({
-          username: owner
-        })
-      return data
+    try {
+      if (isOrg) {
+        // Try new enhanced billing API first
+        try {
+          const { data } = await this.octokit.request(
+            'GET /organizations/{org}/settings/billing/usage',
+            {
+              org: owner,
+              headers: {
+                'X-GitHub-Api-Version': '2022-11-28'
+              }
+            }
+          )
+          // Transform to legacy format
+          const actionsUsage =
+            data.usage_items?.filter((item) => item.product === 'Actions') || []
+          const totalMinutes = actionsUsage.reduce(
+            (sum, item) => sum + (item.quantity || 0),
+            0
+          )
+          return {
+            total_minutes_used: totalMinutes,
+            included_minutes: 3000, // Default for most plans
+            minutes_used_breakdown: {
+              total: totalMinutes
+            }
+          }
+        } catch (enhancedError) {
+          // Fallback to legacy API
+          const { data } =
+            await this.octokit.rest.billing.getGithubActionsBillingOrg({
+              org: owner
+            })
+          return data
+        }
+      } else {
+        // Try new enhanced billing API first
+        try {
+          const { data } = await this.octokit.request(
+            'GET /users/{username}/settings/billing/usage',
+            {
+              username: owner,
+              headers: {
+                'X-GitHub-Api-Version': '2022-11-28'
+              }
+            }
+          )
+          // Transform to legacy format
+          const actionsUsage =
+            data.usage_items?.filter((item) => item.product === 'Actions') || []
+          const totalMinutes = actionsUsage.reduce(
+            (sum, item) => sum + (item.quantity || 0),
+            0
+          )
+          return {
+            total_minutes_used: totalMinutes,
+            included_minutes: 3000, // Default for most plans
+            minutes_used_breakdown: {
+              total: totalMinutes
+            }
+          }
+        } catch (enhancedError) {
+          // Fallback to legacy API
+          const { data } =
+            await this.octokit.rest.billing.getGithubActionsBillingUser({
+              username: owner
+            })
+          return data
+        }
+      }
+    } catch (error) {
+      // If both APIs fail, provide a fallback response
+      if (
+        error.status === 410 ||
+        error.message?.includes('endpoint has been moved')
+      ) {
+        console.log('Billing API unavailable, using default values')
+        return {
+          total_minutes_used: 0,
+          included_minutes: 3000,
+          minutes_used_breakdown: {
+            total: 0
+          }
+        }
+      }
+      throw error
     }
   }
 

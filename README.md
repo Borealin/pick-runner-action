@@ -92,12 +92,12 @@ with appropriate scopes.
 **For Organization Repositories:**
 
 - Organization permissions: "Self-hosted runners" (read)
-- Organization permissions: "Administration" (read) for billing
+- Organization permissions: "Plan" (read) for enhanced billing API
 
 **For Personal Repositories:**
 
 - Repository permissions: "Self-hosted runners" (read)
-- Account permissions: "Billing" (read)
+- Account permissions: "Plan" (read) for enhanced billing API
 
 ### Setup Instructions
 
@@ -202,6 +202,9 @@ npm run coverage
   back to GitHub-hosted runners based on usage limits
 - The action gracefully handles repositories without self-hosted runners
   configured
+- Uses GitHub's enhanced billing API when available, with automatic fallback to
+  legacy billing API
+- Provides sensible defaults if billing information is unavailable
 
 ## Contributing
 
