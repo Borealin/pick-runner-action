@@ -31050,7 +31050,32 @@ async function run() {
   } catch (error) {
     // Fail the workflow run if an error occurs
     if (error instanceof Error) {
-      coreExports.setFailed(`Action failed: ${error.message}`);
+      let errorMessage = `Action failed: ${error.message}`;
+
+      // Provide helpful error messages for common issues
+      if (error.message.includes('Resource not accessible by integration')) {
+        errorMessage +=
+          '\n\n💡 This error usually means your GitHub token lacks the required permissions.';
+        errorMessage +=
+          '\n   Please use a Personal Access Token (PAT) with appropriate scopes:';
+        errorMessage += '\n   - For personal repos: "repo" and "user" scopes';
+        errorMessage += '\n   - For org repos: "admin:org" scope';
+        errorMessage += '\n   See the README for detailed setup instructions.';
+      } else if (
+        error.message.includes('Bad credentials') ||
+        error.message.includes('401')
+      ) {
+        errorMessage +=
+          '\n\n💡 Authentication failed. Please check that your github-token is valid.';
+      } else if (
+        error.message.includes('404') ||
+        error.message.includes('Not Found')
+      ) {
+        errorMessage +=
+          '\n\n💡 Resource not found. Please check that the repository exists and you have access to it.';
+      }
+
+      coreExports.setFailed(errorMessage);
     } else {
       coreExports.setFailed('Action failed with unknown error');
     }

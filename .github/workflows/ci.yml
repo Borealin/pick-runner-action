@@ -60,7 +60,7 @@ jobs:
           self-hosted-tags: 'linux,self-hosted'
           github-hosted-tags: 'ubuntu-latest'
           github-hosted-limit: 1000
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Print Output
         id: output

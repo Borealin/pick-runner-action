@@ -31,7 +31,7 @@ runners based on availability and usage limits.
     self-hosted-tags: "linux,self-hosted"
     github-hosted-tags: "ubuntu-latest"
     github-hosted-limit: 1000
-    github-token: ${{ secrets.GITHUB_TOKEN }}
+    github-token: ${{ secrets.PAT_TOKEN }}  # Use PAT with appropriate permissions
 
 - name: Run job on selected runner
   runs-on: ${{ fromJSON(steps.pick-runner.outputs.selected-runner) }}
@@ -47,7 +47,7 @@ runners based on availability and usage limits.
 | `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels (comma-separated, e.g., "linux,self-hosted") |
 | `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels (comma-separated, e.g., "ubuntu-latest")   |
 | `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes threshold for GitHub-hosted runners          |
-| `github-token`        | ✅       | -       | GitHub token with appropriate permissions                              |
+| `github-token`        | ✅       | -       | Personal Access Token with self-hosted runners and billing permissions |
 
 ## Outputs
 
@@ -72,16 +72,39 @@ runners based on availability and usage limits.
 
 ## Permission Requirements
 
-### For Organization Repositories
+⚠️ **Important**: The default `GITHUB_TOKEN` usually doesn't have sufficient
+permissions for this action. You need to create a Personal Access Token (PAT)
+with appropriate scopes.
 
-- Organization admin permissions (to access organization-level self-hosted
-  runners)
-- Organization billing permissions (to access GitHub Actions usage data)
+### Personal Access Token (Classic) Scopes
 
-### For Personal Repositories
+**For Organization Repositories:**
 
-- Repository admin permissions (to access repository-level self-hosted runners)
-- User billing permissions (to access GitHub Actions usage data)
+- `admin:org` scope (for organization-level self-hosted runners and billing)
+
+**For Personal Repositories:**
+
+- `repo` scope (for repository-level self-hosted runners)
+- `user` scope (for user billing information)
+
+### Fine-grained Personal Access Token Permissions
+
+**For Organization Repositories:**
+
+- Organization permissions: "Self-hosted runners" (read)
+- Organization permissions: "Administration" (read) for billing
+
+**For Personal Repositories:**
+
+- Repository permissions: "Self-hosted runners" (read)
+- Account permissions: "Billing" (read)
+
+### Setup Instructions
+
+1. Go to GitHub Settings → Developer settings → Personal access tokens
+2. Generate a new token with the required scopes/permissions above
+3. Add the token to your repository secrets as `PAT_TOKEN`
+4. Use `${{ secrets.PAT_TOKEN }}` instead of `${{ secrets.GITHUB_TOKEN }}`
 
 ## Examples
 

@@ -85,17 +85,36 @@ npm run all
 
 ## API权限要求
 
-GitHub token需要以下权限：
+### 使用Personal Access Token (Classic)
 
 **对于组织仓库：**
 
-- Organization的admin权限（用于获取组织级self-hosted runners信息）
-- Organization的billing权限（用于获取GitHub Actions用量信息）
+- `admin:org` scope（用于获取组织级self-hosted runners和billing信息）
 
 **对于个人仓库：**
 
-- Repository的admin权限（用于获取仓库级self-hosted runners信息）
-- User的billing权限（用于获取GitHub Actions用量信息）
+- `repo` scope（用于获取仓库级self-hosted runners信息）
+- `user` scope（用于获取用户billing信息）
+
+### 使用Fine-grained Personal Access Token
+
+**对于组织仓库：**
+
+- Organization permissions: "Self-hosted runners" (read)
+- Organization permissions: "Administration" (read) for billing
+
+**对于个人仓库：**
+
+- Repository permissions: "Self-hosted runners" (read)
+- Account permissions: "Billing" (read)
+
+### 重要提醒
+
+⚠️ **`secrets.GITHUB_TOKEN`权限限制**：
+
+- 默认的`GITHUB_TOKEN`通常没有足够权限访问self-hosted runners和billing信息
+- 建议使用具有适当权限的Personal Access Token
+- 将token存储为repository secret，例如`secrets.PAT_TOKEN`
 
 ## 注意事项
 
