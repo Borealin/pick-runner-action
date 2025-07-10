@@ -79,6 +79,35 @@ describe('GitHubAPI', () => {
       })
       expect(result).toEqual(mockRunners)
     })
+
+    it('returns empty array when no self-hosted runners are configured', async () => {
+      mockOctokit.rest.actions.listSelfHostedRunnersForRepo.mockRejectedValue({
+        status: 403,
+        message: 'Resource not accessible by personal access token'
+      })
+
+      const result = await githubApi.getSelfHostedRunners(
+        'test-user',
+        'test-repo',
+        false
+      )
+
+      expect(result).toEqual([])
+    })
+
+    it('throws error for other API errors in getSelfHostedRunners', async () => {
+      mockOctokit.rest.actions.listSelfHostedRunnersForOrg.mockRejectedValue({
+        status: 500,
+        message: 'Server Error'
+      })
+
+      await expect(
+        githubApi.getSelfHostedRunners('test-org', null, true)
+      ).rejects.toEqual({
+        status: 500,
+        message: 'Server Error'
+      })
+    })
   })
 
   describe('getBillingInfo', () => {

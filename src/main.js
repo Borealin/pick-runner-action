@@ -48,6 +48,12 @@ export async function run() {
     ])
 
     core.info(`Found ${runners.length} self-hosted runners`)
+    if (runners.length === 0) {
+      core.info(
+        'ℹ️ No self-hosted runners are configured for this repository/organization'
+      )
+      core.info('Will use GitHub-hosted runners based on usage limits')
+    }
     core.info(
       `GitHub Actions billing - Used: ${billingInfo.total_minutes_used}/${billingInfo.included_minutes} minutes`
     )
@@ -128,6 +134,15 @@ export async function run() {
         errorMessage += '\n   - For personal repos: "repo" and "user" scopes'
         errorMessage += '\n   - For org repos: "admin:org" scope'
         errorMessage += '\n   See the README for detailed setup instructions.'
+      } else if (
+        error.message.includes(
+          'Resource not accessible by personal access token'
+        )
+      ) {
+        errorMessage +=
+          '\n\n💡 This usually means no self-hosted runners are configured for this repository.'
+        errorMessage +=
+          '\n   Either configure self-hosted runners or this action will use GitHub-hosted runners only.'
       } else if (
         error.message.includes('Bad credentials') ||
         error.message.includes('401')

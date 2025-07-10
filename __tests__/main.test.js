@@ -167,4 +167,23 @@ describe('main.js', () => {
       '["linux","self-hosted"]'
     )
   })
+
+  it('Works when no self-hosted runners are configured', async () => {
+    // Mock no self-hosted runners available
+    mockGitHubAPI.getSelfHostedRunners.mockResolvedValue([])
+    mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(false)
+    mockGitHubAPI.hasSufficientGitHubHostedMinutes.mockReturnValue(true)
+
+    await run()
+
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'selected-runner',
+      '"ubuntu-latest"'
+    )
+    expect(core.setOutput).toHaveBeenCalledWith('runner-type', 'github-hosted')
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'reason',
+      'GitHub-hosted runners have sufficient remaining minutes (2000 >= 1000)'
+    )
+  })
 })

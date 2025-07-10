@@ -18,19 +18,33 @@ export class GitHubAPI {
    * @returns {Promise<Array>} Array of runner objects
    */
   async getSelfHostedRunners(owner, repo = null, isOrg = true) {
-    if (isOrg) {
-      const { data } =
-        await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
-          org: owner
-        })
-      return data.runners
-    } else {
-      const { data } =
-        await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
-          owner,
-          repo
-        })
-      return data.runners
+    try {
+      if (isOrg) {
+        const { data } =
+          await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
+            org: owner
+          })
+        return data.runners
+      } else {
+        const { data } =
+          await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
+            owner,
+            repo
+          })
+        return data.runners
+      }
+    } catch (error) {
+      // Handle case where repository has no self-hosted runners configured
+      if (
+        error.status === 403 &&
+        error.message.includes('Resource not accessible')
+      ) {
+        console.log(
+          'No self-hosted runners configured for this repository/organization'
+        )
+        return []
+      }
+      throw error
     }
   }
 

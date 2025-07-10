@@ -198,6 +198,10 @@ npm run coverage
 - Output is always in JSON format - use `fromJSON()` to parse in workflows
 - Self-hosted runners for personal repositories are repository-level, while
   organization repositories use organization-level runners
+- If no self-hosted runners are configured, the action will automatically fall
+  back to GitHub-hosted runners based on usage limits
+- The action gracefully handles repositories without self-hosted runners
+  configured
 
 ## Contributing
 

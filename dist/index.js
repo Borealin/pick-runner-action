@@ -30845,19 +30845,33 @@ class GitHubAPI {
    * @returns {Promise<Array>} Array of runner objects
    */
   async getSelfHostedRunners(owner, repo = null, isOrg = true) {
-    if (isOrg) {
-      const { data } =
-        await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
-          org: owner
-        });
-      return data.runners
-    } else {
-      const { data } =
-        await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
-          owner,
-          repo
-        });
-      return data.runners
+    try {
+      if (isOrg) {
+        const { data } =
+          await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
+            org: owner
+          });
+        return data.runners
+      } else {
+        const { data } =
+          await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
+            owner,
+            repo
+          });
+        return data.runners
+      }
+    } catch (error) {
+      // Handle case where repository has no self-hosted runners configured
+      if (
+        error.status === 403 &&
+        error.message.includes('Resource not accessible')
+      ) {
+        console.log(
+          'No self-hosted runners configured for this repository/organization'
+        );
+        return []
+      }
+      throw error
     }
   }
 
@@ -30981,6 +30995,12 @@ async function run() {
     ]);
 
     coreExports.info(`Found ${runners.length} self-hosted runners`);
+    if (runners.length === 0) {
+      coreExports.info(
+        'ℹ️ No self-hosted runners are configured for this repository/organization'
+      );
+      coreExports.info('Will use GitHub-hosted runners based on usage limits');
+    }
     coreExports.info(
       `GitHub Actions billing - Used: ${billingInfo.total_minutes_used}/${billingInfo.included_minutes} minutes`
     );
@@ -31061,6 +31081,15 @@ async function run() {
         errorMessage += '\n   - For personal repos: "repo" and "user" scopes';
         errorMessage += '\n   - For org repos: "admin:org" scope';
         errorMessage += '\n   See the README for detailed setup instructions.';
+      } else if (
+        error.message.includes(
+          'Resource not accessible by personal access token'
+        )
+      ) {
+        errorMessage +=
+          '\n\n💡 This usually means no self-hosted runners are configured for this repository.';
+        errorMessage +=
+          '\n   Either configure self-hosted runners or this action will use GitHub-hosted runners only.';
       } else if (
         error.message.includes('Bad credentials') ||
         error.message.includes('401')
