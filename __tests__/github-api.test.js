@@ -133,9 +133,17 @@ describe('GitHubAPI', () => {
 
     it('falls back to enhanced API for organizations when legacy API fails', async () => {
       const mockEnhancedResponse = {
-        usage_items: [
-          { product: 'Actions', quantity: 1000 },
-          { product: 'Packages', quantity: 500 }
+        usageItems: [
+          {
+            product: 'actions',
+            quantity: 1000,
+            unitType: 'Minutes'
+          },
+          {
+            product: 'codespaces',
+            quantity: 500,
+            unitType: 'Hours'
+          }
         ]
       }
       mockOctokit.rest.billing.getGithubActionsBillingOrg.mockRejectedValue(
@@ -151,6 +159,8 @@ describe('GitHubAPI', () => {
         'GET /organizations/{org}/settings/billing/usage',
         {
           org: 'test-org',
+          year: expect.any(Number),
+          month: expect.any(Number),
           headers: {
             'X-GitHub-Api-Version': '2022-11-28'
           }
@@ -186,7 +196,13 @@ describe('GitHubAPI', () => {
 
     it('falls back to enhanced API for users when legacy API fails', async () => {
       const mockEnhancedResponse = {
-        usage_items: [{ product: 'Actions', quantity: 500 }]
+        usageItems: [
+          {
+            product: 'actions',
+            quantity: 500,
+            unitType: 'Minutes'
+          }
+        ]
       }
       mockOctokit.rest.billing.getGithubActionsBillingUser.mockRejectedValue(
         new Error('Legacy API not available')
@@ -201,6 +217,8 @@ describe('GitHubAPI', () => {
         'GET /users/{username}/settings/billing/usage',
         {
           username: 'test-user',
+          year: expect.any(Number),
+          month: expect.any(Number),
           headers: {
             'X-GitHub-Api-Version': '2022-11-28'
           }

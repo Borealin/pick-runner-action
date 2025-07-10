@@ -30900,16 +30900,25 @@ class GitHubAPI {
           : 'GET /users/{username}/settings/billing/usage';
         const params = isOrg ? { org: owner } : { username: owner };
 
+        const now = new Date();
+        const currentMonth = now.getMonth() + 1; // API uses 1-12, getMonth() returns 0-11
+        const currentYear = now.getFullYear();
+
         const { data } = await this.octokit.request(endpoint, {
           ...params,
+          year: currentYear,
+          month: currentMonth,
           headers: {
             'X-GitHub-Api-Version': '2022-11-28'
           }
         });
 
-        // Transform to legacy format
+        // Transform to legacy format - only filter for actions minutes
         const actionsUsage =
-          data.usage_items?.filter((item) => item.product === 'Actions') || [];
+          data.usageItems?.filter((item) => {
+            return item.product === 'actions' && item.unitType === 'Minutes'
+          }) || [];
+
         const totalMinutes = actionsUsage.reduce(
           (sum, item) => sum + (item.quantity || 0),
           0
