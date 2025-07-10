@@ -1,7 +1,7 @@
 # Pick Runner Action
 
-[![GitHub Super-Linter](https://github.com/actions/javascript-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
-![CI](https://github.com/actions/javascript-action/actions/workflows/ci.yml/badge.svg)
+[![GitHub Super-Linter](https://github.com/Borealin/pick-runner-action/actions/workflows/linter.yml/badge.svg)](https://github.com/super-linter/super-linter)
+![CI](https://github.com/Borealin/pick-runner-action/actions/workflows/ci.yml/badge.svg)
 [![Coverage](./badges/coverage.svg)](./badges/coverage.svg)
 
 A GitHub Action that intelligently selects between self-hosted and GitHub-hosted
@@ -23,21 +23,42 @@ runners based on availability and usage limits.
 
 ## Usage
 
+### Basic Example
+
 ```yaml
 - name: Pick Runner
   id: pick-runner
-  uses: your-org/pick-runner-action@v1
+  uses: Borealin/pick-runner-action@v1
   with:
     self-hosted-tags: "linux,self-hosted"
     github-hosted-tags: "ubuntu-latest"
     github-hosted-limit: 1000
-    github-token: ${{ secrets.PAT_TOKEN }}  # Use PAT with appropriate permissions
+    github-token: ${{ secrets.PAT_TOKEN }}
 
 - name: Run job on selected runner
   runs-on: ${{ fromJSON(steps.pick-runner.outputs.selected-runner) }}
   steps:
     - run: echo "Running on ${{ steps.pick-runner.outputs.runner-type }}"
     - run: echo "Selection reason: ${{ steps.pick-runner.outputs.reason }}"
+```
+
+### Multiple Runner Tags
+
+```yaml
+- name: Select Runner for GPU Tasks
+  id: runner
+  uses: Borealin/pick-runner-action@v1
+  with:
+    self-hosted-tags: 'linux,gpu,large'
+    github-hosted-tags: 'ubuntu-latest,macos-latest'
+    github-hosted-limit: 2000
+    github-token: ${{ secrets.PAT_TOKEN }}
+
+- name: Run Tests
+  runs-on: ${{ fromJSON(steps.runner.outputs.selected-runner) }}
+  steps:
+    - run: echo "Running on ${{ steps.runner.outputs.runner-type }}"
+    - run: echo "Reason: ${{ steps.runner.outputs.reason }}"
 ```
 
 ## Inputs
@@ -105,44 +126,6 @@ with appropriate scopes.
 2. Generate a new token with the required scopes/permissions above
 3. Add the token to your repository secrets as `PAT_TOKEN`
 4. Use `${{ secrets.PAT_TOKEN }}` instead of `${{ secrets.GITHUB_TOKEN }}`
-
-## Examples
-
-### Basic Usage
-
-```yaml
-- name: Select Runner
-  id: runner
-  uses: your-org/pick-runner-action@v1
-  with:
-    self-hosted-tags: 'linux,self-hosted'
-    github-hosted-tags: 'ubuntu-latest'
-    github-hosted-limit: 500
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### Multiple Runner Tags
-
-```yaml
-- name: Select Runner
-  id: runner
-  uses: your-org/pick-runner-action@v1
-  with:
-    self-hosted-tags: 'linux,gpu,large'
-    github-hosted-tags: 'ubuntu-latest,macos-latest'
-    github-hosted-limit: 2000
-    github-token: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### Using the Output
-
-```yaml
-# The output is always in JSON format, use fromJSON to parse
-- name: Run Tests
-  runs-on: ${{ fromJSON(steps.runner.outputs.selected-runner) }}
-  steps:
-    - run: echo "Running on ${{ steps.runner.outputs.runner-type }}"
-```
 
 ## Development
 
