@@ -11,6 +11,28 @@ export class GitHubAPI {
   }
 
   /**
+   * Get repository-level self-hosted runners
+   * @param {string} owner - Owner name
+   * @param {string} repo - Repository name
+   * @returns {Promise<Object>} Promise that resolves to runners result
+   */
+  async getRepoRunners(owner, repo) {
+    return this.octokit.rest.actions
+      .listSelfHostedRunnersForRepo({
+        owner,
+        repo
+      })
+      .then((response) => ({
+        type: 'repo',
+        runners: response.data.runners
+      }))
+      .catch(() => {
+        console.log('No repository-level self-hosted runners available')
+        return { type: 'repo', runners: [] }
+      })
+  }
+
+  /**
    * Get all self-hosted runners for an organization or user
    * @param {string} owner - Owner name (organization or user)
    * @param {string} repo - Repository name (for user repos)
@@ -18,34 +40,57 @@ export class GitHubAPI {
    * @returns {Promise<Array>} Array of runner objects
    */
   async getSelfHostedRunners(owner, repo = null, isOrg = true) {
-    try {
-      if (isOrg) {
-        const { data } =
-          await this.octokit.rest.actions.listSelfHostedRunnersForOrg({
+    const allRunners = []
+    const promises = []
+
+    // Always get repository-level runners if repo is provided
+    if (repo) {
+      promises.push(this.getRepoRunners(owner, repo))
+    }
+
+    // For organizations, also get organization-level runners
+    if (isOrg) {
+      promises.push(
+        this.octokit.rest.actions
+          .listSelfHostedRunnersForOrg({
             org: owner
           })
-        return data.runners
-      } else {
-        const { data } =
-          await this.octokit.rest.actions.listSelfHostedRunnersForRepo({
-            owner,
-            repo
+          .then((response) => ({
+            type: 'org',
+            runners: response.data.runners
+          }))
+          .catch(() => {
+            console.log('No organization-level self-hosted runners available')
+            return { type: 'org', runners: [] }
           })
-        return data.runners
-      }
-    } catch (error) {
-      // Handle case where repository has no self-hosted runners configured
-      if (
-        error.status === 403 &&
-        error.message.includes('Resource not accessible')
-      ) {
-        console.log(
-          'No self-hosted runners configured for this repository/organization'
-        )
-        return []
-      }
-      throw error
+      )
     }
+
+    // If no promises were added, return empty array
+    if (promises.length === 0) {
+      console.log('No repository specified for user account')
+      return []
+    }
+
+    const results = await Promise.all(promises)
+
+    // Combine all runners from different levels
+    results.forEach((result) => {
+      if (result.runners && result.runners.length > 0) {
+        // Add source information to each runner for debugging
+        const runnersWithSource = result.runners.map((runner) => ({
+          ...runner,
+          _source: result.type // Add source info for debugging
+        }))
+        allRunners.push(...runnersWithSource)
+      }
+    })
+
+    const levelDescription = isOrg ? '(org + repo level)' : '(repo level)'
+    console.log(
+      `Found ${allRunners.length} total self-hosted runners ${levelDescription}`
+    )
+    return allRunners
   }
 
   /**
@@ -148,7 +193,7 @@ export class GitHubAPI {
    * @returns {boolean} True if available runners found
    */
   hasAvailableSelfHostedRunners(runners, tags) {
-    const requiredTags = tags.map((tag) => tag.trim())
+    const requiredTags = tags.map((tag) => tag.trim().toLowerCase())
 
     return runners.some((runner) => {
       // Check if runner is online and not busy
@@ -156,8 +201,10 @@ export class GitHubAPI {
         return false
       }
 
-      // Check if runner has all required tags
-      const runnerLabels = runner.labels.map((label) => label.name)
+      // Check if runner has all required tags (case-insensitive)
+      const runnerLabels = runner.labels.map((label) =>
+        label.name.toLowerCase()
+      )
       return requiredTags.every((tag) => runnerLabels.includes(tag))
     })
   }

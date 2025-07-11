@@ -37,11 +37,11 @@ describe('GitHubAPI', () => {
 
   describe('getSelfHostedRunners', () => {
     it('calls org API for organization repositories', async () => {
-      const mockRunners = [
-        { id: 1, name: 'runner-1', status: 'online', busy: false }
+      const mockOrgRunners = [
+        { id: 1, name: 'org-runner-1', status: 'online', busy: false }
       ]
       mockOctokit.rest.actions.listSelfHostedRunnersForOrg.mockResolvedValue({
-        data: { runners: mockRunners }
+        data: { runners: mockOrgRunners }
       })
 
       const result = await githubApi.getSelfHostedRunners(
@@ -55,7 +55,48 @@ describe('GitHubAPI', () => {
       ).toHaveBeenCalledWith({
         org: 'test-org'
       })
-      expect(result).toEqual(mockRunners)
+      // Should only have org runners since repo is null
+      expect(result).toEqual([{ ...mockOrgRunners[0], _source: 'org' }])
+    })
+
+    it('calls both org and repo APIs for organization repositories with repo specified', async () => {
+      const mockOrgRunners = [
+        { id: 1, name: 'org-runner-1', status: 'online', busy: false }
+      ]
+      const mockRepoRunners = [
+        { id: 2, name: 'repo-runner-1', status: 'online', busy: false }
+      ]
+
+      mockOctokit.rest.actions.listSelfHostedRunnersForOrg.mockResolvedValue({
+        data: { runners: mockOrgRunners }
+      })
+      mockOctokit.rest.actions.listSelfHostedRunnersForRepo.mockResolvedValue({
+        data: { runners: mockRepoRunners }
+      })
+
+      const result = await githubApi.getSelfHostedRunners(
+        'test-org',
+        'test-repo',
+        true
+      )
+
+      expect(
+        mockOctokit.rest.actions.listSelfHostedRunnersForOrg
+      ).toHaveBeenCalledWith({
+        org: 'test-org'
+      })
+      expect(
+        mockOctokit.rest.actions.listSelfHostedRunnersForRepo
+      ).toHaveBeenCalledWith({
+        owner: 'test-org',
+        repo: 'test-repo'
+      })
+
+      // Should have both repo and org runners (repo comes first now)
+      expect(result).toEqual([
+        { ...mockRepoRunners[0], _source: 'repo' },
+        { ...mockOrgRunners[0], _source: 'org' }
+      ])
     })
 
     it('calls repo API for user repositories', async () => {
@@ -78,7 +119,8 @@ describe('GitHubAPI', () => {
         owner: 'test-user',
         repo: 'test-repo'
       })
-      expect(result).toEqual(mockRunners)
+      // Now all runners have _source field
+      expect(result).toEqual([{ ...mockRunners[0], _source: 'repo' }])
     })
 
     it('returns empty array when no self-hosted runners are configured', async () => {
@@ -96,18 +138,23 @@ describe('GitHubAPI', () => {
       expect(result).toEqual([])
     })
 
-    it('throws error for other API errors in getSelfHostedRunners', async () => {
+    it('handles when both org and repo have no runners configured', async () => {
       mockOctokit.rest.actions.listSelfHostedRunnersForOrg.mockRejectedValue({
-        status: 500,
-        message: 'Server Error'
+        status: 403,
+        message: 'Resource not accessible by personal access token'
+      })
+      mockOctokit.rest.actions.listSelfHostedRunnersForRepo.mockRejectedValue({
+        status: 403,
+        message: 'Resource not accessible by personal access token'
       })
 
-      await expect(
-        githubApi.getSelfHostedRunners('test-org', null, true)
-      ).rejects.toEqual({
-        status: 500,
-        message: 'Server Error'
-      })
+      const result = await githubApi.getSelfHostedRunners(
+        'test-org',
+        'test-repo',
+        true
+      )
+
+      expect(result).toEqual([])
     })
   })
 
@@ -380,6 +427,36 @@ describe('GitHubAPI', () => {
       const result = githubApi.hasAvailableSelfHostedRunners(runners, tags)
 
       expect(result).toBe(false)
+    })
+
+    it('matches labels case-insensitively', () => {
+      const runners = [
+        {
+          status: 'online',
+          busy: false,
+          labels: [{ name: 'Linux' }, { name: 'GPU' }, { name: 'self-hosted' }]
+        }
+      ]
+      const tags = ['linux', 'gpu', 'self-hosted']
+
+      const result = githubApi.hasAvailableSelfHostedRunners(runners, tags)
+
+      expect(result).toBe(true)
+    })
+
+    it('matches mixed case labels correctly', () => {
+      const runners = [
+        {
+          status: 'online',
+          busy: false,
+          labels: [{ name: 'ubuntu-latest' }, { name: 'X64' }]
+        }
+      ]
+      const tags = ['Ubuntu-Latest', 'x64']
+
+      const result = githubApi.hasAvailableSelfHostedRunners(runners, tags)
+
+      expect(result).toBe(true)
     })
   })
 
