@@ -65,7 +65,11 @@ export async function run() {
     )
 
     if (selfHostedAvailable) {
-      core.info('Self-hosted runners are available and not busy')
+      core.info(
+        `Self-hosted runners are available and not busy ${selfHostedTags.join(
+          ', '
+        )}`
+      )
       const selectedRunner =
         selfHostedTags.length === 1
           ? JSON.stringify(selfHostedTags[0])
@@ -109,7 +113,11 @@ export async function run() {
     core.info(
       `GitHub-hosted runners do not have sufficient remaining minutes: ${remaining} < ${githubHostedLimit}`
     )
-    core.info('Falling back to self-hosted runners even if busy')
+    core.info(
+      `Falling back to self-hosted runners even if busy ${selfHostedTags.join(
+        ', '
+      )}`
+    )
     const selectedRunner =
       selfHostedTags.length === 1
         ? JSON.stringify(selfHostedTags[0])
