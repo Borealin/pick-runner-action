@@ -10,13 +10,32 @@ const mockGitHubAPI = {
   getBillingInfo: jest.fn(),
   isOrganization: jest.fn(),
   hasAvailableSelfHostedRunners: jest.fn(),
-  hasSufficientGitHubHostedMinutes: jest.fn()
+  hasSufficientGitHubHostedMinutes: jest.fn(),
+  octokit: {
+    rest: {
+      git: {
+        createRef: jest.fn(),
+        deleteRef: jest.fn(),
+        getRef: jest.fn(),
+        getCommit: jest.fn()
+      }
+    }
+  }
+}
+
+// Mock GitMutex
+const mockGitMutex = {
+  acquireLock: jest.fn(),
+  releaseLock: jest.fn()
 }
 
 // Mocks should be declared before the module being tested is imported.
 jest.unstable_mockModule('@actions/core', () => core)
 jest.unstable_mockModule('../src/github-api.js', () => ({
   GitHubAPI: jest.fn().mockImplementation(() => mockGitHubAPI)
+}))
+jest.unstable_mockModule('../src/git-mutex.js', () => ({
+  GitMutex: jest.fn().mockImplementation(() => mockGitMutex)
 }))
 
 // The module being tested should be imported dynamically.
@@ -53,6 +72,10 @@ describe('main.js', () => {
     mockGitHubAPI.isOrganization.mockResolvedValue(true)
     mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(false)
     mockGitHubAPI.hasSufficientGitHubHostedMinutes.mockReturnValue(true)
+
+    // Reset mutex mock
+    mockGitMutex.acquireLock.mockResolvedValue(true)
+    mockGitMutex.releaseLock.mockResolvedValue()
   })
 
   afterEach(() => {
@@ -184,6 +207,95 @@ describe('main.js', () => {
     expect(core.setOutput).toHaveBeenCalledWith(
       'reason',
       'GitHub-hosted runners have sufficient remaining minutes (2000 >= 1000)'
+    )
+  })
+
+  it('Uses mutex lock when mutex-key is provided and self-hosted runners are available', async () => {
+    // Mock mutex key input
+    core.getInput.mockImplementation((input) => {
+      switch (input) {
+        case 'self-hosted-tags':
+          return 'linux,self-hosted'
+        case 'github-hosted-tags':
+          return 'ubuntu-latest'
+        case 'github-hosted-limit':
+          return '1000'
+        case 'github-token':
+          return 'fake-token'
+        case 'mutex-key':
+          return 'test-mutex'
+        default:
+          return ''
+      }
+    })
+
+    // Mock self-hosted runners available
+    mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(true)
+    mockGitMutex.acquireLock.mockResolvedValue(true)
+
+    await run()
+
+    expect(mockGitMutex.acquireLock).toHaveBeenCalled()
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'selected-runner',
+      '["linux","self-hosted"]'
+    )
+    expect(core.setOutput).toHaveBeenCalledWith('runner-type', 'self-hosted')
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'reason',
+      'Self-hosted runners available with mutex protection (test-mutex)'
+    )
+  })
+
+  it('Falls back to GitHub-hosted when mutex lock fails', async () => {
+    // Mock mutex key input
+    core.getInput.mockImplementation((input) => {
+      switch (input) {
+        case 'self-hosted-tags':
+          return 'linux,self-hosted'
+        case 'github-hosted-tags':
+          return 'ubuntu-latest'
+        case 'github-hosted-limit':
+          return '1000'
+        case 'github-token':
+          return 'fake-token'
+        case 'mutex-key':
+          return 'test-mutex'
+        default:
+          return ''
+      }
+    })
+
+    // Mock self-hosted runners available but mutex lock fails
+    mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(true)
+    mockGitMutex.acquireLock.mockResolvedValue(false) // Lock timeout
+    mockGitHubAPI.hasSufficientGitHubHostedMinutes.mockReturnValue(true)
+
+    await run()
+
+    expect(mockGitMutex.acquireLock).toHaveBeenCalled()
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'selected-runner',
+      '"ubuntu-latest"'
+    )
+    expect(core.setOutput).toHaveBeenCalledWith('runner-type', 'github-hosted')
+  })
+
+  it('Works without mutex when mutex-key is not provided', async () => {
+    // Mock no mutex key (default behavior)
+    mockGitHubAPI.hasAvailableSelfHostedRunners.mockReturnValue(true)
+
+    await run()
+
+    expect(mockGitMutex.acquireLock).not.toHaveBeenCalled()
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'selected-runner',
+      '["linux","self-hosted"]'
+    )
+    expect(core.setOutput).toHaveBeenCalledWith('runner-type', 'self-hosted')
+    expect(core.setOutput).toHaveBeenCalledWith(
+      'reason',
+      'Self-hosted runners are available'
     )
   })
 })

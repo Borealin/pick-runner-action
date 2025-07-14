@@ -20,6 +20,8 @@ runners based on availability and usage limits.
   repositories
 - **🔍 Automatic Detection**: Automatically detects repository type and uses
   appropriate APIs
+- **🔒 Mutual Exclusion**: Optional mutex locking prevents concurrent access to
+  self-hosted runners
 
 ## Usage
 
@@ -61,14 +63,34 @@ runners based on availability and usage limits.
     - run: echo "Reason: ${{ steps.runner.outputs.reason }}"
 ```
 
+### With Mutex Protection
+
+```yaml
+- name: Select Runner with Exclusive Access
+  id: runner
+  uses: Borealin/pick-runner-action@v1
+  with:
+    self-hosted-tags: 'linux,self-hosted'
+    github-hosted-tags: 'ubuntu-latest'
+    github-hosted-limit: 1000
+    github-token: ${{ secrets.PAT_TOKEN }}
+    mutex-key: 'deployment-runner' # Only one workflow can use this key
+
+- name: Deploy Application
+  runs-on: ${{ fromJSON(steps.runner.outputs.selected-runner) }}
+  steps:
+    - run: echo "Deploying with exclusive runner access"
+```
+
 ## Inputs
 
-| Input                 | Required | Default | Description                 |
-| --------------------- | -------- | ------- | --------------------------- |
-| `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels   |
-| `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels |
-| `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes   |
-| `github-token`        | ✅       | -       | Personal Access Token       |
+| Input                 | Required | Default | Description                    |
+| --------------------- | -------- | ------- | ------------------------------ |
+| `self-hosted-tags`    | ✅       | -       | Self-hosted runner labels      |
+| `github-hosted-tags`  | ✅       | -       | GitHub-hosted runner labels    |
+| `github-hosted-limit` | ✅       | `1000`  | Minimum remaining minutes      |
+| `github-token`        | ✅       | -       | Personal Access Token          |
+| `mutex-key`           | ❌       | -       | Mutex key for exclusive access |
 
 ## Outputs
 

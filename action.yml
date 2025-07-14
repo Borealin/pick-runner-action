@@ -27,6 +27,12 @@ inputs:
   github-token:
     description: 'GitHub token with org admin permissions'
     required: true
+  mutex-key:
+    description:
+      'Optional mutex key for exclusive access to self-hosted runners. If
+      provided, only one workflow with the same key can use self-hosted runners
+      at a time.'
+    required: false
 
 # Define your outputs here.
 outputs:

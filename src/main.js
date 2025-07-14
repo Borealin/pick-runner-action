@@ -1,5 +1,6 @@
 import * as core from '@actions/core'
 import { GitHubAPI } from './github-api.js'
+import { GitMutex } from './git-mutex.js'
 
 /**
  * The main function for the action.
@@ -23,6 +24,7 @@ export async function run() {
 
     const githubHostedLimit = parseInt(core.getInput('github-hosted-limit'), 10)
     const githubToken = core.getInput('github-token')
+    const mutexKey = core.getInput('mutex-key') // Optional mutex key
     const owner = process.env.GITHUB_REPOSITORY_OWNER
     const repo = process.env.GITHUB_REPOSITORY?.split('/')[1]
 
@@ -66,18 +68,71 @@ export async function run() {
 
     if (selfHostedAvailable) {
       core.info(
-        `Self-hosted runners are available and not busy ${selfHostedTags.join(
+        `Self-hosted runners are available and not busy: ${selfHostedTags.join(
           ', '
         )}`
       )
-      const selectedRunner =
-        selfHostedTags.length === 1
-          ? JSON.stringify(selfHostedTags[0])
-          : JSON.stringify(selfHostedTags)
-      core.setOutput('selected-runner', selectedRunner)
-      core.setOutput('runner-type', 'self-hosted')
-      core.setOutput('reason', 'Self-hosted runners are available')
-      return
+
+      // If mutex key is provided, acquire lock for exclusive access
+      if (mutexKey) {
+        core.info(`Acquiring mutex lock: ${mutexKey}`)
+        const mutex = new GitMutex(githubApi.octokit, owner, repo, mutexKey)
+
+        try {
+          const lockAcquired = await mutex.acquireLock()
+
+          if (!lockAcquired) {
+            core.info(
+              'Failed to acquire mutex lock, checking GitHub-hosted runners instead'
+            )
+          } else {
+            // Double-check runners are still available after acquiring lock
+            const latestRunners = await githubApi.getSelfHostedRunners(
+              owner,
+              repo,
+              isOrg
+            )
+            const stillAvailable = githubApi.hasAvailableSelfHostedRunners(
+              latestRunners,
+              selfHostedTags
+            )
+
+            if (stillAvailable) {
+              const selectedRunner =
+                selfHostedTags.length === 1
+                  ? JSON.stringify(selfHostedTags[0])
+                  : JSON.stringify(selfHostedTags)
+              core.setOutput('selected-runner', selectedRunner)
+              core.setOutput('runner-type', 'self-hosted')
+              core.setOutput(
+                'reason',
+                `Self-hosted runners available with mutex protection (${mutexKey})`
+              )
+
+              // Note: mutex will be automatically released by cleanup handlers
+              return
+            } else {
+              core.info(
+                'Self-hosted runners became unavailable while waiting for lock'
+              )
+              await mutex.releaseLock()
+            }
+          }
+        } catch (error) {
+          core.warning(`Mutex error: ${error.message}`)
+          core.info('Falling back to GitHub-hosted runners')
+        }
+      } else {
+        // No mutex requested, use self-hosted runners directly
+        const selectedRunner =
+          selfHostedTags.length === 1
+            ? JSON.stringify(selfHostedTags[0])
+            : JSON.stringify(selfHostedTags)
+        core.setOutput('selected-runner', selectedRunner)
+        core.setOutput('runner-type', 'self-hosted')
+        core.setOutput('reason', 'Self-hosted runners are available')
+        return
+      }
     }
 
     core.info('Self-hosted runners are not available or busy')
